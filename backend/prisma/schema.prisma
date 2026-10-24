@@ -1,0 +1,78 @@
+generator client {
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  moduleFormat           = "esm"
+  runtime                = "nodejs"
+  generatedFileExtension = "ts"
+  importFileExtension    = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique @db.VarChar(320)
+  name      String?  @db.VarChar(120)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  stores    Store[]
+}
+
+model Store {
+  id        String   @id @default(uuid()) @db.Uuid
+  ownerId   String   @db.Uuid
+  name      String   @db.VarChar(120)
+  url       String?
+  currency  String   @db.Char(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  owner    User      @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  orders   Order[]
+  products Product[]
+
+  @@index([ownerId])
+}
+
+model Order {
+  id         String   @default(uuid()) @db.Uuid
+  storeId    String   @db.Uuid
+  externalId String?  @db.VarChar(191)
+  status     String   @db.VarChar(40)
+  currency   String   @db.Char(3)
+  subtotal   Decimal  @db.Decimal(19, 4)
+  discount   Decimal  @default(0) @db.Decimal(19, 4)
+  tax        Decimal  @default(0) @db.Decimal(19, 4)
+  shipping   Decimal  @default(0) @db.Decimal(19, 4)
+  total      Decimal  @db.Decimal(19, 4)
+  placedAt   DateTime @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  // Unique record lookups must include the store; external IDs may repeat elsewhere.
+  @@id([storeId, id])
+  @@unique([storeId, externalId])
+  @@index([storeId, placedAt])
+  @@index([storeId, status])
+}
+
+model Product {
+  id         String   @default(uuid()) @db.Uuid
+  storeId    String   @db.Uuid
+  externalId String?  @db.VarChar(191)
+  sku        String?  @db.VarChar(191)
+  name       String   @db.VarChar(255)
+  price      Decimal  @db.Decimal(19, 4)
+  stock      Int?
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Restrict)
+
+  @@id([storeId, id])
+  @@unique([storeId, externalId])
+  @@unique([storeId, sku])
+  @@index([storeId, name])
+}
